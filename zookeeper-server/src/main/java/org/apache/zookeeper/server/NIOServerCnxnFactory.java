@@ -749,13 +749,20 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
             expirerThread.start();
         }
     }
-
+    // 启动了ServerCnxnFactory ，同时启动ZooKeeper服务
     @Override
     public void startup(ZooKeeperServer zks, boolean startServer) throws IOException, InterruptedException {
+        // 启动相关线程
+        //开启NIOWorker线程池，
+        //启动NIO Selector线程
+        //启动客户端连接处理acceptThread线程
         start();
         setZooKeeperServer(zks);
+        //启动服务
         if (startServer) {
+            // 加载数据到zkDataBase
             zks.startdata();
+            // 启动定时清除session的管理器,注册jmx,添加请求处理器
             zks.startup();
         }
     }

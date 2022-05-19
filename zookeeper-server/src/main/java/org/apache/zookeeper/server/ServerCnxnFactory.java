@@ -156,10 +156,13 @@ public abstract class ServerCnxnFactory {
     }
 
     public abstract void closeAll(ServerCnxn.DisconnectReason reason);
-
+    // Zookeeper中 ServerCnxnFactory默认采用了NIOServerCnxnFactory来实现，
+    // 也可以通过配置系统属性zookeeper.serverCnxnFactory 来设置使用Netty实现
     public static ServerCnxnFactory createFactory() throws IOException {
+        // 配置属性zookeeper.serverCnxnFactory
         String serverCnxnFactoryName = System.getProperty(ZOOKEEPER_SERVER_CNXN_FACTORY);
         if (serverCnxnFactoryName == null) {
+            // 如果未指定实现类，默认使用NIOServerCnxnFactory
             serverCnxnFactoryName = NIOServerCnxnFactory.class.getName();
         }
         try {

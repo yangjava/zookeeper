@@ -35,8 +35,10 @@ public interface QuorumVerifier {
     boolean containsQuorum(Set<Long> set);
     long getVersion();
     void setVersion(long ver);
+    // 集群中所有server列表,key为集群中每台机器的serverId，value为QuorumServer
     Map<Long, QuorumServer> getAllMembers();
     Map<Long, QuorumServer> getVotingMembers();
+    // 集群中所有处于观察者的server列表,key为集群中每台机器的serverId，value为QuorumServer
     Map<Long, QuorumServer> getObservingMembers();
     boolean equals(Object o);
     String toString();

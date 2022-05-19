@@ -203,15 +203,15 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     public static class QuorumServer {
 
         public MultipleAddresses addr = new MultipleAddresses();
-
+        //选举之前，各server参与选举的Address
         public MultipleAddresses electionAddr = new MultipleAddresses();
 
         public InetSocketAddress clientAddr = null;
-
+        // 机器的serverId
         public long id;
-
+        // host
         public String hostname;
-
+        // server类型，为PARTICIPANT 或者 OBSERVER;
         public LearnerType type = LearnerType.PARTICIPANT;
 
         public boolean isClientAddrFromStatic = false;
@@ -477,9 +477,13 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     }
 
     public enum ServerState {
+        // 表示服务器处于选举状态，说明集群正在进行投票选举，选出leader
         LOOKING,
+        // 表示服务器处于following状态，表示当前server的角色是follower
         FOLLOWING,
+        // 表示服务器处于leading状态，当前server角色是leader
         LEADING,
+        // 表示服务器处于OBSERVING状态，当前server角色是OBSERVER
         OBSERVING
     }
 
@@ -1073,10 +1077,13 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
     @Override
     public synchronized void start() {
+        // 校验serverid如果不在peer列表中，抛异常
         if (!getView().containsKey(myid)) {
             throw new RuntimeException("My id " + myid + " not in the peer list");
         }
+        // 加载zk数据库:载入之前持久化的一些信息
         loadDataBase();
+        // 启动连接服务端
         startServerCnxnFactory();
         try {
             adminServer.start();
@@ -1084,11 +1091,13 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             LOG.warn("Problem starting AdminServer", e);
             System.out.println(e);
         }
+        // 启动之后马上进行选举，主要是创建选举必须的环境，比如：启动相关线程
         startLeaderElection();
+        // 执行选举逻辑
         startJvmPauseMonitor();
         super.start();
     }
-
+    // Zookeeper会首先加载本地磁盘数据，如果之前存在一些Zookeeper信息，则会加载到Zookeeper内存数据库中。
     private void loadDataBase() {
         try {
             zkDb.loadDataBase();
@@ -1158,6 +1167,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     }
     public synchronized void startLeaderElection() {
         try {
+            // 所有节点启动的初始状态都是LOOKING，因此这里都会是创建一张投自己为Leader的票
             if (getPeerState() == ServerState.LOOKING) {
                 currentVote = new Vote(myid, getLastLoggedZxid(), getCurrentEpoch());
             }
@@ -1166,7 +1176,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             re.setStackTrace(e.getStackTrace());
             throw re;
         }
-
+        // 初始化选举算法，electionType默认为3
         this.electionAlg = createElectionAlgorithm(electionType);
     }
 

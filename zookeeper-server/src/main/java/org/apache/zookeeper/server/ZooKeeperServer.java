@@ -658,9 +658,12 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
 
     public void startdata() throws IOException, InterruptedException {
         //check to see if zkDb is not null
+        // 初始化ZKDatabase，该数据结构用来保存ZK上面存储的所有数据
         if (zkDb == null) {
+            // 初始化数据数据，这里会加入一些原始节点，例如/zookeeper
             zkDb = new ZKDatabase(this.txnLogFactory);
         }
+        // 加载磁盘上已经存储的数据，如果有的话
         if (!zkDb.isInitialized()) {
             loadData();
         }
@@ -680,14 +683,17 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     }
 
     private void startupWithServerState(State state) {
+        // 初始化session追踪器
         if (sessionTracker == null) {
             createSessionTracker();
         }
+        // 启动session追踪器
         startSessionTracker();
+        // 建立请求处理链路
         setupRequestProcessors();
 
         startRequestThrottler();
-
+        // 注册jmx
         registerJMX();
 
         startJvmPauseMonitor();

@@ -65,25 +65,30 @@ public class QuorumPeerConfig {
     private static final Logger LOG = LoggerFactory.getLogger(QuorumPeerConfig.class);
     private static final int UNSET_SERVERID = -1;
     public static final String nextDynamicConfigFileSuffix = ".dynamic.next";
-
+    // 是否单机
     private static boolean standaloneEnabled = true;
     private static boolean reconfigEnabled = false;
-
+    // 暴露给客户端的port
     protected InetSocketAddress clientPortAddress;
     protected InetSocketAddress secureClientPortAddress;
     protected boolean sslQuorum = false;
     protected boolean shouldUsePortUnification = false;
     protected int observerMasterPort;
     protected boolean sslQuorumReloadCertFiles = false;
+    // 快照日志目录
     protected File dataDir;
+    // 事务日志目录
     protected File dataLogDir;
     protected String dynamicConfigFileStr = null;
     protected String configFileStr = null;
+    // tick时间，默认三秒，用于在minSessionTimeout以及maxSessionTimeout没有配置时，提供默认值
     protected int tickTime = ZooKeeperServer.DEFAULT_TICK_TIME;
     protected int maxClientCnxns = 60;
     /** defaults to -1 if not set explicitly */
+    // 如果没有显式配置，默认-1,在QuorumPeer.getMinSessionTimeout()中，如果没有显式配置，则返回tickTime * 2
     protected int minSessionTimeout = -1;
     /** defaults to -1 if not set explicitly */
+    // 如果没有显式配置，默认-1,在QuorumPeer.getMaxSessionTimeout中，如果没有显式配置，则返回tickTime * 20
     protected int maxSessionTimeout = -1;
     protected String metricsProviderClassName = DefaultMetricsProvider.class.getName();
     protected Properties metricsProviderConfiguration = new Properties();
@@ -91,14 +96,18 @@ public class QuorumPeerConfig {
     protected boolean localSessionsUpgradingEnabled = false;
     /** defaults to -1 if not set explicitly */
     protected int clientPortListenBacklog = -1;
-
+    // 初始化阶段，learner和leader的通信读取超时时间，最长为initLimit*tickTime
     protected int initLimit;
+    // 在初始化阶段之后的请求阶段Learner和Leader通信的读取超时时间
     protected int syncLimit;
     protected int connectToLearnerMasterLimit;
+    // =3，即对应FastLeaderElection
     protected int electionAlg = 3;
+    // 默认2182; 即选举用的端口
     protected int electionPort = 2182;
+    // 该参数设置为true，Zookeeper服务器将监听所有可用IP地址的连接。他会影响ZAB协议和快速Leader选举协
     protected boolean quorumListenOnAllIPs = false;
-
+    // 即sid，从dataDir下的"myid"文件得到的long型，代表该server的id
     protected long serverId = UNSET_SERVERID;
 
     protected QuorumVerifier quorumVerifier = null, lastSeenQuorumVerifier = null;
@@ -107,7 +116,7 @@ public class QuorumPeerConfig {
     protected boolean syncEnabled = true;
 
     protected String initialConfig;
-
+    // learner分两种：PARTICIPANT 和 OBSERVER;这里默认PARTICIPANT
     protected LearnerType peerType = LearnerType.PARTICIPANT;
 
     /**
@@ -178,10 +187,11 @@ public class QuorumPeerConfig {
                 .warnForRelativePath()
                 .failForNonExistingPath()
                 .build()).create(path);
-
+            // 配置文件是使用Java的properties形式写的，所以可以通过Properties.load来解析
             Properties cfg = new Properties();
             FileInputStream in = new FileInputStream(configFile);
             try {
+                // 加载配置文件到Properties中
                 cfg.load(in);
                 configFileStr = path;
             } finally {
@@ -190,7 +200,7 @@ public class QuorumPeerConfig {
 
             /* Read entire config file as initial configuration */
             initialConfig = new String(Files.readAllBytes(configFile.toPath()));
-
+            // 这个方法就是将Properties中对应属性回写到QuorumPeerConfig
             parseProperties(cfg);
         } catch (IOException e) {
             throw new ConfigException("Error processing " + path, e);
@@ -926,7 +936,7 @@ public class QuorumPeerConfig {
     public long getServerId() {
         return serverId;
     }
-
+    // 集群：只有一个参数，并且配置了多个server
     public boolean isDistributed() {
         return quorumVerifier != null && (!standaloneEnabled || quorumVerifier.getVotingMembers().size() > 1);
     }

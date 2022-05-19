@@ -68,11 +68,12 @@ public class Vote {
     }
 
     private final int version;
-
+    // 服务节点Id，也就是Zookeeper dataDir中配置的myid ，server.*上指定的id。0,1,2,3,4..... ，该Id启动后不变
     private final long id;
-
+    // 数据状态Id，zookeeper每次更新状态之后增加，可理解为全局有序id ，zxid越大，表示数据越新。
+    // Zxid是一个64位的数字，高32位为epoch，低32位为递增计数。
     private final long zxid;
-
+    // 选举时钟,也可以理解为选举轮次，没进行一次选举，该值会+1；
     private final long electionEpoch;
 
     private final long peerEpoch;
@@ -100,7 +101,9 @@ public class Vote {
     public ServerState getState() {
         return state;
     }
-
+    // 服务状态，Zookeeper节点角色状态，
+    // 分为LOOKING、FOLLOWING、LEADING和OBSERVING，分别对应于不同的角色，
+    // 当处于选举时，节点处于Looking状态。
     private final ServerState state;
 
     @Override
