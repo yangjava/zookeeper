@@ -22,6 +22,7 @@ import java.util.Set;
 
 /**
  */
+// ClientWatchManager， 客户端Watcher管理器。
 public interface ClientWatchManager {
 
     /**

@@ -722,6 +722,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     }
 
     protected void setupRequestProcessors() {
+        // 创建FinalRequestProcessor
         RequestProcessor finalProcessor = new FinalRequestProcessor(this);
         RequestProcessor syncProcessor = new SyncRequestProcessor(this, finalProcessor);
         ((SyncRequestProcessor) syncProcessor).start();

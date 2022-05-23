@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 public class FilePadding {
 
     private static final Logger LOG;
+    // 预分配大小 64M
     private static long preAllocSize = 65536 * 1024;
     private static final ByteBuffer fill = ByteBuffer.allocateDirect(1);
 
@@ -42,7 +43,7 @@ public class FilePadding {
             }
         }
     }
-
+    // 当前大小
     private long currentSize;
 
     /**
@@ -72,8 +73,11 @@ public class FilePadding {
      * @param fileChannel the fileChannel of the file to be padded
      * @throws IOException
      */
+    // 其主要作用是当文件大小不满64MB时，向文件填充0以达到64MB大小。
     long padFile(FileChannel fileChannel) throws IOException {
+        // 获取位置
         long newFileSize = calculateFileSizeWithPadding(fileChannel.position(), currentSize, preAllocSize);
+        // 重新设置当前大小，剩余部分填充0
         if (currentSize != newFileSize) {
             fileChannel.write((ByteBuffer) fill.position(0), newFileSize - fill.remaining());
             currentSize = newFileSize;
@@ -93,6 +97,7 @@ public class FilePadding {
      * padding was done.
      */
     // VisibleForTesting
+    // 计算后是否大于当前大小
     public static long calculateFileSizeWithPadding(long position, long fileSize, long preAllocSize) {
         // If preAllocSize is positive and we are within 4KB of the known end of the file calculate a new file size
         if (preAllocSize > 0 && position + 4096 >= fileSize) {

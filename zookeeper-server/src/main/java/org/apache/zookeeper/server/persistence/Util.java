@@ -135,11 +135,14 @@ public class Util {
      * @param prefix the file name prefix (snapshot or log)
      * @return zxid
      */
+    // 主要用作从文件名中解析zxid，并且需要从指定的前缀开始。
     public static long getZxidFromName(String name, String prefix) {
         long zxid = -1;
+        // 对文件名进行分割
         String[] nameParts = name.split("\\.");
         if (nameParts.length >= 2 && nameParts[0].equals(prefix)) {
             try {
+                // 转化成长整形
                 zxid = Long.parseLong(nameParts[1], 16);
             } catch (NumberFormatException e) {
             }
@@ -246,11 +249,14 @@ public class Util {
      * descending order
      * @return sorted input files
      */
+    // 其用于排序log文件，可以选择根据zxid进行升序或降序。
     public static List<File> sortDataDir(File[] files, String prefix, boolean ascending) {
         if (files == null) {
             return new ArrayList<File>(0);
         }
+        // 转化为列表
         List<File> filelist = Arrays.asList(files);
+        // 进行排序，Comparator是关键，根据zxid进行排序
         Collections.sort(filelist, new DataDirFileComparator(prefix, ascending));
         return filelist;
     }

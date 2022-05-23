@@ -24,8 +24,12 @@ import org.apache.yetus.audience.InterfaceAudience;
 /**
  * Interface that is implemented by generated classes.
  */
+// 所有用于进行序列化或者反序列化操作都实现该接口
+// 所有的实现类都需要实现seriallize和deserialize方法。
 @InterfaceAudience.Public
 public interface Record {
+    // 序列化
     void serialize(OutputArchive archive, String tag) throws IOException;
+    // 反序列化
     void deserialize(InputArchive archive, String tag) throws IOException;
 }

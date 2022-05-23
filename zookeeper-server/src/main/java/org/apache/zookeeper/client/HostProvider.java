@@ -43,6 +43,7 @@ import org.apache.yetus.audience.InterfaceAudience;
  * * A HostProvider that prefers nearby hosts.
  */
 @InterfaceAudience.Public
+// HostProvider，客户端地址列表管理器。
 public interface HostProvider {
 
     int size();

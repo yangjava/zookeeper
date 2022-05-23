@@ -37,7 +37,9 @@ public abstract class LearnerZooKeeperServer extends QuorumZooKeeperServer {
     /*
      * Request processors
      */
+    // 提交请求处理器
     protected CommitProcessor commitProcessor;
+    // 同步请求处理器
     protected SyncRequestProcessor syncProcessor;
 
     public LearnerZooKeeperServer(FileTxnSnapLog logFactory, int tickTime, int minSessionTimeout, int maxSessionTimeout, int listenBacklog, ZKDatabase zkDb, QuorumPeer self) throws IOException {

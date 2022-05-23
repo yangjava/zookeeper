@@ -146,6 +146,8 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("try")
 @InterfaceAudience.Public
+// Zookeeper实例，客户端入口。
+// 客户端基础类、存储了ClientCnxn和ZkWatcherManager
 public class ZooKeeper implements AutoCloseable {
 
     /**
@@ -162,7 +164,7 @@ public class ZooKeeper implements AutoCloseable {
      */
     @Deprecated
     public static final String SECURE_CLIENT = "zookeeper.client.secure";
-
+    // ClientCnxn，客户端核心线程，内部包含了SendThread和EventThread两个线程，
     protected final ClientCnxn cnxn;
     private static final Logger LOG;
 
@@ -171,7 +173,7 @@ public class ZooKeeper implements AutoCloseable {
         LOG = LoggerFactory.getLogger(ZooKeeper.class);
         Environment.logEnv("Client environment:", LOG);
     }
-
+    // HostProvider，客户端地址列表管理器。
     protected final HostProvider hostProvider;
 
     /**
@@ -278,6 +280,8 @@ public class ZooKeeper implements AutoCloseable {
      * the public methods will not be exposed as part of the ZooKeeper client
      * API.
      */
+    // ZooKeeper的内部类，实现了ClientWatchManager接口，主要用来存储各种类型的Watcher，
+    // 主要有三种：dataWatches、existWatches、childWatches以及一个默认的defaultWatcher
     static class ZKWatchManager implements ClientWatchManager {
 
         private final Map<String, Set<Watcher>> dataWatches = new HashMap<String, Set<Watcher>>();
@@ -634,6 +638,7 @@ public class ZooKeeper implements AutoCloseable {
     /**
      * Register a watcher for a particular path.
      */
+    // Zookeeper的内容类，包装了Watcher和clientPath，并且负责Watcher的注册
     public abstract class WatchRegistration {
 
         private Watcher watcher;
@@ -1016,12 +1021,23 @@ public class ZooKeeper implements AutoCloseable {
      *             <li> watcher is null
      *             </ul>
      */
+    // 客户端与服务端建立的连接，建立会话保持连接有状态，并且可以通过会话重连或者重用一条连接。
+    // 连接建立是一个异步过程，也就是说创建好ZooKeeper实例之后就会立刻返回，
+    // 而此时可能还没有完成会话创建，所以需要传入一个watcher事件。
+    // 当会话真正创建成功后，客户端会生成一个”已建立连接“（SyncConnected）的事件，
+    // 进行回调通知。
     public ZooKeeper(
+        //服务器地址，形式为ip:port,ip:port,ip:port，中间由英文逗号分隔；也可以指定节点路径，如ip:port,ip:port,ip:port/test
         String connectString,
+        // 会话超时时间，单位毫秒
         int sessionTimeout,
+        // watcher事件，因为客户端建立连接时一个异步过程，需要通过注册watcher事件进行回调通知
         Watcher watcher,
+        // 标识当前会话是否支持只读模式
         boolean canBeReadOnly,
+        // 服务地址选择器
         HostProvider aHostProvider,
+        // 客户端配置，可以将客户端一些配置信息如sasl、scoket实现类等放到一个文件中。一般可以不用传clientConfig
         ZKClientConfig clientConfig) throws IOException {
         LOG.info(
             "Initiating client connection, connectString={} sessionTimeout={} watcher={}",
@@ -1265,6 +1281,7 @@ public class ZooKeeper implements AutoCloseable {
      *             <li> watcher is null
      *             </ul>
      */
+    // 通过上一次会话建立成功后的sessionId和sessionPasswd可以重新建立连接：
     public ZooKeeper(
         String connectString,
         int sessionTimeout,

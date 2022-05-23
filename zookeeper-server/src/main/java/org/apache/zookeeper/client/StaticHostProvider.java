@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
  *
  */
 @InterfaceAudience.Public
+// StaticHostProvider核心思想是，将服务地址列表打乱，然后构成一个虚拟环，轮询向外提供服务地址。
 public final class StaticHostProvider implements HostProvider {
 
     public interface Resolver {
@@ -53,8 +54,9 @@ public final class StaticHostProvider implements HostProvider {
     private List<InetSocketAddress> serverAddresses = new ArrayList<InetSocketAddress>(5);
 
     private Random sourceOfRandomness;
+    // 上次选择的位置。会话建立成功之后会将currentIndex赋值给lastIndex
     private int lastIndex = -1;
-
+    // 指向当前选择的位置。每选择一次就加一，如果等于服务地址列表长度，就重置为0，这样就形成了一个环。
     private int currentIndex = -1;
 
     /**
@@ -123,7 +125,7 @@ public final class StaticHostProvider implements HostProvider {
             }
         });
     }
-
+    // 初始化
     private void init(Collection<InetSocketAddress> serverAddresses, long randomnessSeed, Resolver resolver) {
         this.sourceOfRandomness = new Random(randomnessSeed);
         this.resolver = resolver;
@@ -149,7 +151,7 @@ public final class StaticHostProvider implements HostProvider {
             return address;
         }
     }
-
+    // 打乱地址使用Java官方提供的工具java.util.Collections#shuffle。
     private List<InetSocketAddress> shuffle(Collection<InetSocketAddress> serverAddresses) {
         List<InetSocketAddress> tmpList = new ArrayList<>(serverAddresses.size());
         tmpList.addAll(serverAddresses);
@@ -346,17 +348,20 @@ public final class StaticHostProvider implements HostProvider {
                 reconfigMode = false;
                 needToSleep = (spinDelay > 0);
             }
+            // currentIndex自增，如果等于服务地址列表长度，就重置为0
             ++currentIndex;
             if (currentIndex == serverAddresses.size()) {
                 currentIndex = 0;
             }
             addr = serverAddresses.get(currentIndex);
+            // lastIndex 什么时候设置呢？会话建立成功之后调用 onConnected，将currentIndex赋值给lastIndex
             needToSleep = needToSleep || (currentIndex == lastIndex && spinDelay > 0);
             if (lastIndex == -1) {
                 // We don't want to sleep on the first ever connect attempt.
                 lastIndex = 0;
             }
         }
+        // 如果 currentIndex和lastIndex且spinDelay>0，就需要休眠spinDelay时间，
         if (needToSleep) {
             try {
                 Thread.sleep(spinDelay);
@@ -364,7 +369,9 @@ public final class StaticHostProvider implements HostProvider {
                 LOG.warn("Unexpected exception", e);
             }
         }
-
+        // 解析InetSocketAddress，
+        // 如果一个主机映射了多个ip地址（InetAddress）
+        // 就打乱选择其中一个地址返回
         return resolve(addr);
     }
 

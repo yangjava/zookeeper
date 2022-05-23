@@ -29,6 +29,7 @@ import org.apache.yetus.audience.InterfaceAudience;
  *
  */
 @InterfaceAudience.Public
+// 接口类型，其定义了process方法，需子类实现。
 public interface Watcher {
 
     /**

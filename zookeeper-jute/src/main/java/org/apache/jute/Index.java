@@ -32,7 +32,10 @@ package org.apache.jute;
  * </code>
  *
  */
+// 其用于迭代反序列化器的迭代器
 public interface Index {
+    // 是否已经完成
     boolean done();
+    // 下一项
     void incr();
 }

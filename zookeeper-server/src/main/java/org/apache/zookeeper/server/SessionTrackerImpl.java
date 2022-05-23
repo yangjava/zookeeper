@@ -41,6 +41,8 @@ import org.slf4j.LoggerFactory;
  * period. Sessions are thus expired in batches made up of sessions that expire
  * in a given interval.
  */
+// SessionTracker是Zookeeper服务端的会话管理器，负责会话的创建、管理和清理等工作。
+// Zookeeper的会话管理主要是通过SessionTracker来负责，其采用了分桶策略（将类似的会话放在同一区块中进行管理）进行管理，以便Zookeeper对会话进行不同区块的隔离处理以及同一区块的统一处理。
 public class SessionTrackerImpl extends ZooKeeperCriticalThread implements SessionTracker {
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionTrackerImpl.class);
@@ -51,7 +53,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
 
     private final ConcurrentMap<Long, Integer> sessionsWithTimeout;
     private final AtomicLong nextSessionId = new AtomicLong();
-
+    // Session是Zookeeper中的会话实体，代表了一个客户端会话
     public static class SessionImpl implements Session {
 
         SessionImpl(long sessionId, int timeout) {
@@ -59,9 +61,11 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
             this.timeout = timeout;
             isClosing = false;
         }
-
+        // 会话ID，唯一标识一个会话，每次客户端创建新的会话时，Zookeeper都会为其分配一个全局唯一的sessionID。
         final long sessionId;
+        // 会话超时时间，客户端在构造Zookeeper实例时，会配置sessionTimeout参数用于指定会话的超时时间，Zookeeper客户端向服务端发送这个超时时间后，服务端会根据自己的超时时间限制最终确定会话的超时时间。
         final int timeout;
+        // 标记一个会话是否已经被关闭，当服务端检测到会话已经超时失效时，会将该会话的isClosing标记为"已关闭"，这样就能确保不再处理来自该会话的心情求了。
         boolean isClosing;
 
         Object owner;
@@ -89,8 +93,14 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
      * @param id server Id
      * @return the Session Id
      */
+    // Zookeeper为了保证请求会话的全局唯一性，在SessionTracker初始化时，
+    // 调用initializeNextSession方法生成一个sessionID，
+    // 之后在Zookeeper运行过程中，会在该sessionID的基础上为每个会话进行分配
+    // 其中的id表示配置在myid文件中的值，通常是一个整数，如1、2、3。
+    // 该算法的高8位确定了所在机器，后56位使用当前时间的毫秒表示进行随机。
     public static long initializeNextSessionId(long id) {
         long nextSid;
+        // 无符号右移8位使为了避免左移24后，再右移8位出现负数而无法通过高8位确定sid值
         nextSid = (Time.currentElapsedTime() << 24) >>> 8;
         nextSid = nextSid | (id << 56);
         if (nextSid == EphemeralType.CONTAINER_EPHEMERAL_OWNER) {

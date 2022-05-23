@@ -103,6 +103,10 @@ import org.slf4j.MDC;
  *
  */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
+// ClientCnxn是Zookeeper客户端中负责维护客户端与服务端之间的网络连接并进行一系列网络通信的核心工作类
+// ClientCnxn，客户端核心线程，内部包含了SendThread和EventThread两个线程，
+// SendThread为I/O线程，主要负责Zookeeper客户端和服务器之间的网络I/O通信；
+// EventThread为事件线程，主要负责对服务端事件进行处理。
 public class ClientCnxn {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientCnxn.class);
@@ -145,11 +149,15 @@ public class ClientCnxn {
     /**
      * These are the packets that have been sent and are waiting for a response.
      */
+    // pendingQueue（服务端响应的等待队列）
+    // pendingQueue用于存储那些已经从客户端发送到服务端的，但是需要等待服务端响应的Packet集合。
     private final Queue<Packet> pendingQueue = new ArrayDeque<>();
 
     /**
      * These are the packets that need to be sent.
      */
+    // outgoingQueue（客户端的请求发送队列）
+    // outgoingQueue专门用于存储那些需要发送到服务端的Packet集合
     private final LinkedBlockingDeque<Packet> outgoingQueue = new LinkedBlockingDeque<Packet>();
 
     private int connectTimeout;
@@ -260,18 +268,19 @@ public class ClientCnxn {
     /**
      * This class allows us to pass the headers and the relevant records around.
      */
+    // Packet是ClientCnxn内部定义的一个堆协议层的封装，用作Zookeeper中请求和响应的载体。
     static class Packet {
-
+        // 请求头（requestHeader）
         RequestHeader requestHeader;
-
+        // 响应头（replyHeader）
         ReplyHeader replyHeader;
-
+        // 请求体（request）
         Record request;
-
+        // 响应体（response）
         Record response;
 
         ByteBuffer bb;
-
+        // 节点路径（clientPath/serverPath）
         /** Client's view of the path (may differ due to chroot) **/
         String clientPath;
         /** Servers's view of the path (may differ due to chroot) **/
@@ -282,7 +291,7 @@ public class ClientCnxn {
         AsyncCallback cb;
 
         Object ctx;
-
+        // 注册的Watcher（watchRegistration）
         WatchRegistration watchRegistration;
 
         public boolean readOnly;
@@ -314,7 +323,9 @@ public class ClientCnxn {
             this.readOnly = readOnly;
             this.watchRegistration = watchRegistration;
         }
-
+        // Packet只会将requestHeader、request、readOnly三个属性序列化，
+        // 并生成可用于底层网络传输的ByteBuffer，
+        // 其他属性都保存在客户端的上下文中，不会进行与服务端之间的网络传输。
         public void createBB() {
             try {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -431,6 +442,7 @@ public class ClientCnxn {
         byte[] sessionPasswd,
         boolean canBeReadOnly) throws IOException {
         this.zooKeeper = zooKeeper;
+        // 初始化WatchManager，从zooKeeper构造器传入的Watcher作为默认
         this.watcher = watcher;
         this.sessionId = sessionId;
         this.sessionPasswd = sessionPasswd;
@@ -486,7 +498,10 @@ public class ClientCnxn {
     public static boolean isInEventThread() {
         return Thread.currentThread() instanceof EventThread;
     }
-
+    // EventThread是客户端ClientCnxn内部的一个事件处理线程，负责客户端的事件处理，并触发客户端注册的Watcher监听。
+    // EventThread中的watingEvents队列用于临时存放那些需要被触发的Object，包括客户端注册的Watcher和异步接口中注册的回调器AsyncCallback。
+    // 同时，EventThread会不断地从watingEvents中取出Object，识别具体类型（Watcher或AsyncCallback），
+    // 并分别调用process和processResult接口方法来实现对事件的触发和回调。
     class EventThread extends ZooKeeperThread {
 
         private final LinkedBlockingQueue<Object> waitingEvents = new LinkedBlockingQueue<Object>();
@@ -873,6 +888,15 @@ public class ClientCnxn {
      * This class services the outgoing request queue and generates the heart
      * beats. It also spawns the ReadThread.
      */
+    // SendThread是客户端ClientCnxn内部的一个核心I/O调度线程，用于管理客户端与服务端之间的所有网络I/O操作
+    // 作用如下：
+    //    维护了客户端与服务端之间的会话生命周期（通过一定周期频率内向服务端发送PING包检测心跳），
+    //    如果会话周期内客户端与服务端出现TCP连接断开，那么就会自动且透明地完成重连操作。
+    //
+    //　　管理了客户端所有的请求发送和响应接收操作，其将上层客户端API操作转换成相应的请求协议并发送到服务端，
+    // 并完成对同步调用的返回和异步调用的回调。
+    //
+    //　　将来自服务端的事件传递给EventThread去处理。
     class SendThread extends ZooKeeperThread {
 
         private long lastPingSentNs;

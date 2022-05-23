@@ -21,6 +21,7 @@ package org.apache.jute;
 /**
  * Various utility functions for Hadoop record I/O runtime.
  */
+// Jute是Zookeeper底层序列化组件，其用于Zookeeper进行网络数据传输和本地磁盘数据存储的序列化和反序列化工作。
 public class Utils {
 
     /**

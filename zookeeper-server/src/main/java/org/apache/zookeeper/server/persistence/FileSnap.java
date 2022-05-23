@@ -41,14 +41,20 @@ import org.slf4j.LoggerFactory;
  * and deserializing the right snapshot.
  * and provides access to the snapshots.
  */
+//
 public class FileSnap implements SnapShot {
-
+    //  snapshot目录文件
     File snapDir;
     SnapshotInfo lastSnapshotInfo = null;
+    // 是否已经关闭标识
     private volatile boolean close = false;
+    // 版本号
     private static final int VERSION = 2;
+    // database id
     private static final long dbId = -1;
+    // Logger
     private static final Logger LOG = LoggerFactory.getLogger(FileSnap.class);
+    // snapshot文件的魔数(类似class文件的魔数)
     public static final int SNAP_MAGIC = ByteBuffer.wrap("ZKSN".getBytes()).getInt();
 
     public static final String SNAPSHOT_FILE_PREFIX = "snapshot";
@@ -73,20 +79,28 @@ public class FileSnap implements SnapShot {
         // we run through 100 snapshots (not all of them)
         // if we cannot get it running within 100 snapshots
         // we should  give up
+        // 查找100个合法的snapshot文件
         List<File> snapList = findNValidSnapshots(100);
+        // 无snapshot文件，直接返回
         if (snapList.size() == 0) {
             return -1L;
         }
         File snap = null;
         long snapZxid = -1;
+        // 默认为不合法
         boolean foundValid = false;
+        // 遍历snapList
         for (int i = 0, snapListSize = snapList.size(); i < snapListSize; i++) {
             snap = snapList.get(i);
             LOG.info("Reading snapshot {}", snap);
             snapZxid = Util.getZxidFromName(snap.getName(), SNAPSHOT_FILE_PREFIX);
+            // 输入流
             try (CheckedInputStream snapIS = SnapStream.getInputStream(snap)) {
+                // 读取指定的snapshot文件
                 InputArchive ia = BinaryInputArchive.getArchive(snapIS);
+                // 反序列化
                 deserialize(dt, sessions, ia);
+                // 验证
                 SnapStream.checkSealIntegrity(snapIS, ia);
 
                 // Digest feature was added after the CRC to make it backward
@@ -105,9 +119,11 @@ public class FileSnap implements SnapShot {
                 LOG.warn("problem reading snap file {}", snap, e);
             }
         }
+        // 遍历所有文件都未验证成功
         if (!foundValid) {
             throw new IOException("Not able to find valid snapshots in " + snapDir);
         }
+        // 从文件名中解析出zxid
         dt.lastProcessedZxid = snapZxid;
         lastSnapshotInfo = new SnapshotInfo(dt.lastProcessedZxid, snap.lastModified() / 1000);
 

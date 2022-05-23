@@ -38,7 +38,9 @@ import org.apache.zookeeper.common.PathUtils;
 public final class ConnectStringParser {
 
     private static final int DEFAULT_PORT = 2181;
-
+    // 每个客户端可以设置自己的命名空间，若客户端设置了Chroot，
+    // 此时，该客户端对服务器的任何操作都将被限制在自己的命名空间下，
+    // 如设置Choot为/app/X，那么该客户端的所有节点路径都是以/app/X为根节点。
     private final String chrootPath;
 
     private final ArrayList<InetSocketAddress> serverAddresses = new ArrayList<InetSocketAddress>();
@@ -51,6 +53,7 @@ public final class ConnectStringParser {
      */
     public ConnectStringParser(String connectString) {
         // parse out chroot, if any
+        // connectString 可以指定某个路径
         int off = connectString.indexOf('/');
         if (off >= 0) {
             String chrootPath = connectString.substring(off);
@@ -65,7 +68,7 @@ public final class ConnectStringParser {
         } else {
             this.chrootPath = null;
         }
-
+        // 按 , 分割
         List<String> hostsList = split(connectString, ",");
         for (String host : hostsList) {
             int port = DEFAULT_PORT;
@@ -85,6 +88,7 @@ public final class ConnectStringParser {
                     host = host.substring(0, pidx);
                 }
             }
+            // 封装未解析的InetSocketAddress
             serverAddresses.add(InetSocketAddress.createUnresolved(host, port));
         }
     }

@@ -46,19 +46,26 @@ import org.slf4j.LoggerFactory;
  *
  * A SyncRequestProcessor is also spawned off to log proposals from the leader.
  */
+// 其继承LearnerZooKeeperServer抽象类，角色为Follower。
+// 其请求处理链为FollowerRequestProcessor -> CommitProcessor -> FinalRequestProcessor。
+// 其核心是对待同步请求和待处理事务请求交由不同的请求处理器进行处理。
 public class FollowerZooKeeperServer extends LearnerZooKeeperServer {
-
+    // FollowerZooKeeperServer中维护着提交请求处理器和同步请求处理器，并且维护了所有待同步请求队列和待处理的事务请求队列。
     private static final Logger LOG = LoggerFactory.getLogger(FollowerZooKeeperServer.class);
 
     /*
      * Pending sync requests
-     */ ConcurrentLinkedQueue<Request> pendingSyncs;
+     */
+    // 待同步请求
+    ConcurrentLinkedQueue<Request> pendingSyncs;
 
     /**
      * @throws IOException
      */
+    // 其首先调用父类的构造函数，然后初始化pendingSyncs为空队列。
     FollowerZooKeeperServer(FileTxnSnapLog logFactory, QuorumPeer self, ZKDatabase zkDb) throws IOException {
         super(logFactory, self.tickTime, self.minSessionTimeout, self.maxSessionTimeout, self.clientPortListenBacklog, zkDb, self);
+        // 初始化pendingSyncs
         this.pendingSyncs = new ConcurrentLinkedQueue<Request>();
     }
 
@@ -76,15 +83,20 @@ public class FollowerZooKeeperServer extends LearnerZooKeeperServer {
         syncProcessor = new SyncRequestProcessor(this, new SendAckRequestProcessor(getFollower()));
         syncProcessor.start();
     }
-
+    // 待处理的事务请求
     LinkedBlockingQueue<Request> pendingTxns = new LinkedBlockingQueue<Request>();
-
+    // 该函数将请求进行记录（放入到对应的队列中），等待处理。
     public void logRequest(TxnHeader hdr, Record txn, TxnDigest digest) {
+        // 创建请求
         Request request = new Request(hdr.getClientId(), hdr.getCxid(), hdr.getType(), hdr, txn, hdr.getZxid());
+        // 赋值请求头、事务体、zxid
         request.setTxnDigest(digest);
+        // zxid不为0，表示本服务器已经处理过请求
         if ((request.zxid & 0xffffffffL) != 0) {
+            // 则需要将该请求放入pendingTxns中
             pendingTxns.add(request);
         }
+        // 使用SyncRequestProcessor处理请求(其会将请求放在队列中，异步进行处理)
         syncProcessor.processRequest(request);
     }
 
@@ -94,33 +106,43 @@ public class FollowerZooKeeperServer extends LearnerZooKeeperServer {
      * the pendingTxns queue and hands it to the commitProcessor to commit.
      * @param zxid - must correspond to the head of pendingTxns if it exists
      */
+    // 该函数会提交zxid对应的请求（pendingTxns的队首元素），
+    // 其首先会判断队首请求对应的zxid是否为传入的zxid，
+    // 然后再进行移除和提交（放在committedRequests队列中）。
     public void commit(long zxid) {
+        // 没有还在等待处理的事务
         if (pendingTxns.size() == 0) {
             LOG.warn("Committing " + Long.toHexString(zxid) + " without seeing txn");
             return;
         }
+        // 队首元素的zxid
         long firstElementZxid = pendingTxns.element().zxid;
         if (firstElementZxid != zxid) {
+            // 如果队首元素的zxid不等于需要提交的zxid，则退出程序
             LOG.error("Committing zxid 0x" + Long.toHexString(zxid)
                       + " but next pending txn 0x" + Long.toHexString(firstElementZxid));
             ServiceUtils.requestSystemExit(ExitCode.UNMATCHED_TXN_COMMIT.getValue());
         }
+        // 从待处理事务请求队列中移除队首请求
         Request request = pendingTxns.remove();
         request.logLatency(ServerMetrics.getMetrics().COMMIT_PROPAGATION_LATENCY);
+        // 提交该请求
         commitProcessor.commit(request);
     }
-
+    // 该函数会将待同步请求队列中的元素进行提交，也是将该请求放入committedRequests队列中。
     public synchronized void sync() {
+        // 没有需要同步的请求
         if (pendingSyncs.size() == 0) {
             LOG.warn("Not expecting a sync.");
             return;
         }
-
+        // 从待同步队列中移除队首请求
         Request r = pendingSyncs.remove();
         if (r instanceof LearnerSyncRequest) {
             LearnerSyncRequest lsr = (LearnerSyncRequest) r;
             lsr.fh.queuePacket(new QuorumPacket(Leader.SYNC, 0, null, null));
         }
+        // 提交该请求
         commitProcessor.commit(r);
     }
 

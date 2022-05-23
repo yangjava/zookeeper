@@ -278,7 +278,7 @@ public class Leader extends LearnerMaster {
     }
 
     private final List<ServerSocket> serverSockets = new LinkedList<>();
-
+    // 创建leader的实例，构造方法中传入LeaderZooKeeperServer的实例
     public Leader(QuorumPeer self, LeaderZooKeeperServer zk) throws IOException {
         this.self = self;
         this.proposalStats = new BufferStats();
@@ -587,6 +587,7 @@ public class Leader extends LearnerMaster {
         try {
             self.setZabState(QuorumPeer.ZabState.DISCOVERY);
             self.tick.set(0);
+            // 加载ZKDatabase
             zk.loadData();
 
             leaderStateSummary = new StateSummary(self.getCurrentEpoch(), zk.getLastProcessedZxid());
